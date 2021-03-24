@@ -5,9 +5,10 @@
 - Criar script de build
 - Criar Xcode project Empty (other), importar o executable (com debug -g), criar novo scheme, importar como reference a pasta do source code
 
-
 2. Open Window
 - Criar a primeira Window e seu callback (handle)
 - Run loop for Window
 - Handle Resize
 - Tint background with white | black (swap test)
+- Adicionar dependencias no script
+* Note: interface cannot be static (e.g. NSColor) at ObjC

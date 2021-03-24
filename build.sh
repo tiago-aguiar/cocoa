@@ -2,5 +2,5 @@
 
 mkdir build
 pushd build
-clang -g -o cocoa ../src/osx_main.mm
+clang -g -framework AppKit -o cocoa ../src/osx_main.mm
 popd
