@@ -12,3 +12,8 @@
 - Tint background with white | black (swap test)
 - Adicionar dependencias no script
 * Note: interface cannot be static (e.g. NSColor) at ObjC
+
+3. Allocate backbuffer
+- Quit run looping
+- Resize handle with width and height (rect client) and create/delete a backbuffer bitmap (4 bytes RGBA)
+- When paint, update the window (stretch if needed)
