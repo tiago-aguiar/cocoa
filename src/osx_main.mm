@@ -1,46 +1,90 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <AppKit/AppKit.h>
+
+typedef uint8_t  uint8;
+typedef uint16_t uint16;
+
+typedef int8_t  int8;
+typedef int16_t int16;
+
 
 static float WIDTH  = 1024;
 static float HEIGHT = 768;
 
+static int bitmap_width;
+static int bitmap_height;
+static int bytesPerPixel = 4;
+
 static bool running = true;
-static uint8_t *buffer;
-static NSBitmapImageRep *imageRep;
+static uint8 *buffer;
 
+static void render_gradient(int x_offset, int y_offset) {
+  int width  = bitmap_width;
+  int height = bitmap_height;
 
-static void resizeSection(int width, int height) {
-  if (imageRep) {
+  uint8 *row = buffer;
+  int pitch = bytesPerPixel * width;
+
+  for (int y = 0; y < height; y++) {
+    uint8 *pixel = (uint8 *) row;
+    for (int x = 0; x < width; x++) {
+
+      // R
+      *pixel = 0;
+      ++pixel;
+
+      // G
+      *pixel = (uint8) (y + y_offset);
+      ++pixel;
+
+      // B
+      *pixel = (uint8) (x + x_offset);
+      ++pixel;
+
+      // A
+      *pixel = 255;
+      ++pixel;
+    }
+    row += pitch;
+  }
+}
+
+static void resize_window(int width, int height) {
+  if (buffer) {
     free(buffer);
-    [imageRep release];
   }
 
   // if (!deviceContext) {
   //   deviceContext = ;
   // }
 
-  int bytesPerPixel = 4;
+  bitmap_width  = width;
+  bitmap_height = height;
+
   int pitch = bytesPerPixel * width;
   buffer = (uint8_t *)malloc(pitch * height);
-
-  imageRep = [[NSBitmapImageRep alloc]
-    initWithBitmapDataPlanes:&buffer
-                  pixelsWide:width
-                  pixelsHigh:height
-               bitsPerSample:8
-             samplesPerPixel:4
-                    hasAlpha:YES
-                    isPlanar:NO
-              colorSpaceName:NSDeviceRGBColorSpace
-                bitmapFormat:NSBitmapFormatThirtyTwoBitBigEndian
-                 bytesPerRow:pitch
-                bitsPerPixel:32];
-
 }
 
-static void updateWindow(NSWindow *window, int width, int height) {
+static void redraw_buffer(NSWindow *window) {
   @autoreleasepool {
-    NSImage *image = [[[NSImage alloc] initWithSize:NSMakeSize(width, height)] autorelease];
+    int pitch = bytesPerPixel * bitmap_width;
+    NSBitmapImageRep *imageRep = [[[NSBitmapImageRep alloc]
+      initWithBitmapDataPlanes:&buffer
+                    pixelsWide:bitmap_width
+                    pixelsHigh:bitmap_height
+                 bitsPerSample:8
+               samplesPerPixel:4
+                      hasAlpha:YES
+                      isPlanar:NO
+                colorSpaceName:NSDeviceRGBColorSpace
+                  bitmapFormat:NSBitmapFormatThirtyTwoBitBigEndian
+                   bytesPerRow:pitch
+                  bitsPerPixel:32] autorelease];
+
+
+    NSSize image_size = NSMakeSize(bitmap_width, bitmap_height);
+    NSImage *image = [[[NSImage alloc] initWithSize:image_size] autorelease];
     [image addRepresentation:imageRep];
     window.contentView.layer.contents = image;
   }
@@ -56,10 +100,15 @@ static void updateWindow(NSWindow *window, int width, int height) {
 }
 
 - (void)windowDidResize:(NSNotification *)notification {
+  NSWindow *window = (NSWindow *)notification.object;
+  NSSize size = window.contentView.bounds.size;
+  resize_window(size.width, size.height);
+  render_gradient(0,0);
+  redraw_buffer(window);
 }
 
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
-  resizeSection(frameSize.width, frameSize.height);
+  // resize_window(frameSize.width, frameSize.height);
 
   // static bool isWhite = true;
   // sender.backgroundColor = isWhite ? NSColor.blackColor : NSColor.whiteColor;;
@@ -104,7 +153,17 @@ int main(int argc, const char *argv[]) {
 
   printf("level is %ld\n", window.level);
 
+  int x_offset = 0;
+  int y_offset = 0;
+
+  int width  = window.contentView.bounds.size.width;
+  int height = window.contentView.bounds.size.height;
+
+  resize_window(width, height);
+
   while(running) {
+
+
     NSEvent *event;
 
     do {
@@ -117,9 +176,10 @@ int main(int argc, const char *argv[]) {
           [NSApp sendEvent:event];
       }
 
-      int w = window.contentView.bounds.size.width;
-      int h = window.contentView.bounds.size.height;
-      updateWindow(window, w, h);
+      render_gradient(x_offset, y_offset);
+      redraw_buffer(window);
+      x_offset++;
+
 
     } while(event != nil);
 
