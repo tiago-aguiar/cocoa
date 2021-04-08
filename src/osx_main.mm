@@ -27,24 +27,36 @@ static void render_gradient(int x_offset, int y_offset) {
   int pitch = bytesPerPixel * width;
 
   for (int y = 0; y < height; y++) {
-    uint8 *pixel = (uint8 *) row;
+    // uint8 *pixel = (uint8 *) row;
+    uint32 *pixel = (uint32 *) row;
     for (int x = 0; x < width; x++) {
 
+      /*
       // R
-      *pixel = 0;
-      ++pixel;
+       *pixel = 0;
+       ++pixel;
 
       // G
-      *pixel = (uint8) (y + y_offset);
-      ++pixel;
+       *pixel = (uint8) (y + y_offset);
+       ++pixel;
 
       // B
-      *pixel = (uint8) (x + x_offset);
-      ++pixel;
+       *pixel = (uint8) (x + x_offset);
+       ++pixel;
 
       // A
-      *pixel = 255;
-      ++pixel;
+       *pixel = 255;
+       ++pixel;
+       */
+
+      uint8 alpha = 255;
+      uint8 red   = 0;
+      uint8 green = (y + y_offset);
+      uint8 blue  = (x + x_offset);
+
+      // AA BB GG RR
+      *pixel++ = ((alpha << 24) | (red) | (green << 8) | (blue << 16));
+
     }
     row += pitch;
   }
@@ -163,7 +175,6 @@ int main(int argc, const char *argv[]) {
 
   while(running) {
 
-
     NSEvent *event;
 
     do {
@@ -179,6 +190,7 @@ int main(int argc, const char *argv[]) {
       render_gradient(x_offset, y_offset);
       redraw_buffer(window);
       x_offset++;
+      y_offset++;
 
 
     } while(event != nil);
