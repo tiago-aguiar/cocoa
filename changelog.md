@@ -17,3 +17,6 @@
 - Quit run looping
 - Resize handle with width and height (rect client) and create/delete a backbuffer bitmap (4 bytes RGBA)
 - When paint, update the window (stretch if needed)
+
+4. Animating backbuffer
+- change offset x,y and redraw_buffer- 
