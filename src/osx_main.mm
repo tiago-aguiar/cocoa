@@ -4,33 +4,36 @@
 
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
 
 typedef int8_t  int8;
 typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
 
 
-static float WIDTH  = 1024;
-static float HEIGHT = 768;
+static float WIDTH  = 1280;
+static float HEIGHT = 720;
 
-static int bitmap_width;
-static int bitmap_height;
-static int bytesPerPixel = 4;
+struct OSX_Offscreen_Buffer {
+  // NOTE: Pixels are always 32-bits wide.
+  uint8 *memory;
+  int width;
+  int height;
+  int pitch;
+};
 
 static bool running = true;
-static uint8 *buffer;
+static OSX_Offscreen_Buffer global_back_buffer;
 
-static void render_gradient(int x_offset, int y_offset) {
-  int width  = bitmap_width;
-  int height = bitmap_height;
+static void render_gradient(OSX_Offscreen_Buffer buffer, int x_offset, int y_offset) {
+  uint8 *row = buffer.memory;
 
-  uint8 *row = buffer;
-  int pitch = bytesPerPixel * width;
-
-  for (int y = 0; y < height; y++) {
+  for (int y = 0; y < buffer.height; y++) {
     // uint8 *pixel = (uint8 *) row;
     uint32 *pixel = (uint32 *) row;
-    for (int x = 0; x < width; x++) {
-
+    for (int x = 0; x < buffer.width; x++) {
       /*
       // R
        *pixel = 0;
@@ -48,7 +51,6 @@ static void render_gradient(int x_offset, int y_offset) {
        *pixel = 255;
        ++pixel;
        */
-
       uint8 alpha = 255;
       uint8 red   = 0;
       uint8 green = (y + y_offset);
@@ -56,46 +58,46 @@ static void render_gradient(int x_offset, int y_offset) {
 
       // AA BB GG RR
       *pixel++ = ((alpha << 24) | (red) | (green << 8) | (blue << 16));
-
     }
-    row += pitch;
+    row += buffer.pitch;
   }
 }
 
-static void resize_window(int width, int height) {
-  if (buffer) {
-    free(buffer);
+static void resize_window(OSX_Offscreen_Buffer *buffer, int width, int height) {
+  if (buffer->memory) {
+    free(buffer->memory);
   }
 
   // if (!deviceContext) {
   //   deviceContext = ;
   // }
 
-  bitmap_width  = width;
-  bitmap_height = height;
+  buffer->width  = width;
+  buffer->height = height;
+  int bytes_per_pixel = 4;
 
-  int pitch = bytesPerPixel * width;
-  buffer = (uint8_t *)malloc(pitch * height);
+  buffer->pitch = bytes_per_pixel * width;
+  buffer->memory = (uint8_t *)malloc(buffer->pitch * height);
 }
 
-static void redraw_buffer(NSWindow *window) {
+static void display_buffer_in_window(NSWindow *window, OSX_Offscreen_Buffer buffer) {
+  // TODO: FIX Aspect ratio
   @autoreleasepool {
-    int pitch = bytesPerPixel * bitmap_width;
     NSBitmapImageRep *imageRep = [[[NSBitmapImageRep alloc]
-      initWithBitmapDataPlanes:&buffer
-                    pixelsWide:bitmap_width
-                    pixelsHigh:bitmap_height
+      initWithBitmapDataPlanes:&buffer.memory
+                    pixelsWide:buffer.width
+                    pixelsHigh:buffer.height
                  bitsPerSample:8
                samplesPerPixel:4
                       hasAlpha:YES
                       isPlanar:NO
                 colorSpaceName:NSDeviceRGBColorSpace
                   bitmapFormat:NSBitmapFormatThirtyTwoBitBigEndian
-                   bytesPerRow:pitch
+                   bytesPerRow:buffer.pitch
                   bitsPerPixel:32] autorelease];
 
 
-    NSSize image_size = NSMakeSize(bitmap_width, bitmap_height);
+    NSSize image_size = NSMakeSize(buffer.width, buffer.height);
     NSImage *image = [[[NSImage alloc] initWithSize:image_size] autorelease];
     [image addRepresentation:imageRep];
     window.contentView.layer.contents = image;
@@ -112,11 +114,14 @@ static void redraw_buffer(NSWindow *window) {
 }
 
 - (void)windowDidResize:(NSNotification *)notification {
-  NSWindow *window = (NSWindow *)notification.object;
-  NSSize size = window.contentView.bounds.size;
-  resize_window(size.width, size.height);
-  render_gradient(0,0);
-  redraw_buffer(window);
+  // NOTE: Disable next lines makes stretchs on bitmap otherwise keep
+  // all buffer size. Test it for more information!
+
+  // NSWindow *window = (NSWindow *)notification.object;
+  // NSSize size = window.contentView.bounds.size;
+  // resize_window(&global_back_buffer, size.width, size.height);
+  // render_gradient(global_back_buffer, 0, 0);
+  // display_buffer_in_window(window, global_back_buffer);
 }
 
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
@@ -171,7 +176,7 @@ int main(int argc, const char *argv[]) {
   int width  = window.contentView.bounds.size.width;
   int height = window.contentView.bounds.size.height;
 
-  resize_window(width, height);
+  resize_window(&global_back_buffer, width, height);
 
   while(running) {
 
@@ -187,8 +192,8 @@ int main(int argc, const char *argv[]) {
           [NSApp sendEvent:event];
       }
 
-      render_gradient(x_offset, y_offset);
-      redraw_buffer(window);
+      render_gradient(global_back_buffer, x_offset, y_offset);
+      display_buffer_in_window(window, global_back_buffer);
       x_offset++;
       y_offset++;
 

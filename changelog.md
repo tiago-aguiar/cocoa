@@ -20,3 +20,7 @@
 
 4. Animating backbuffer
 - change offset x,y and redraw_buffer- 
+
+5. Cleanup code
+- extract all global into struct BackBuffer
+- disable 'change and resize' and now, the image stretchs according window
